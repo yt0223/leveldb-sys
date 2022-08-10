@@ -1,13 +1,27 @@
+extern crate cmake;
+
 use std::{
     env,
     path::{Path, PathBuf},
 };
+use cmake::Config;
 
 #[cfg(feature = "snappy")]
 const SNAPPY_VERSION: &'static str = "1.1.7";
 const LEVELDB_VERSION: &'static str = "1.22";
 /// Directory name within `$OUT_DIR` where the static libraries should be built.
 const LIBDIR: &'static str = "lib";
+
+fn support_mobile_cross_compiling(config: &mut Config) {
+    let target = env::var("TARGET").unwrap();
+    if target.contains("android") {
+        config.define("CMAKE_SYSTEM_NAME", "Android");
+    } else if target.contains("ios") {
+        config.define("CMAKE_SYSTEM_NAME", "iOS");
+        // trick cmake-rs line:636
+        config.define("CMAKE_OSX_DEPLOYMENT_TARGET", "7.0");
+    }
+}
 
 #[cfg(feature = "snappy")]
 fn build_snappy() -> PathBuf {
@@ -17,9 +31,10 @@ fn build_snappy() -> PathBuf {
     let libdir = Path::new(&outdir).join(LIBDIR);
 
     env::set_var("NUM_JOBS", num_cpus::get().to_string());
-    let dest_prefix =
-        cmake::Config::new(Path::new("deps").join(format!("snappy-{}", SNAPPY_VERSION)))
-            .define("BUILD_SHARED_LIBS", "OFF")
+    let mut config =
+        Config::new(Path::new("deps").join(format!("snappy-{}", SNAPPY_VERSION)));
+    support_mobile_cross_compiling(&mut config);
+    let dest_prefix = config.define("BUILD_SHARED_LIBS", "OFF")
             .define("SNAPPY_BUILD_TESTS", "OFF")
             .define("HAVE_LIBZ", "OFF")
             .define("CMAKE_INSTALL_LIBDIR", &libdir)
@@ -44,7 +59,8 @@ fn build_leveldb(snappy_prefix: Option<PathBuf>) {
 
     env::set_var("NUM_JOBS", num_cpus::get().to_string());
     let mut config =
-        cmake::Config::new(Path::new("deps").join(format!("leveldb-{}", LEVELDB_VERSION)));
+        Config::new(Path::new("deps").join(format!("leveldb-{}", LEVELDB_VERSION)));
+    support_mobile_cross_compiling(&mut config);
     config
         .define("LEVELDB_BUILD_TESTS", "OFF")
         .define("LEVELDB_BUILD_BENCHMARKS", "OFF")
