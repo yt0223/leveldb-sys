@@ -16,6 +16,14 @@ fn support_mobile_cross_compiling(config: &mut Config) {
     let target = env::var("TARGET").unwrap();
     if target.contains("android") {
         config.define("CMAKE_SYSTEM_NAME", "Android");
+        if target.contains("aarch64") {
+            config.define("CMAKE_ANDROID_ARCH_ABI", "arm64-v8a");
+        }
+        if target.contains("armv7") {
+            config.define("CMAKE_ANDROID_ARCH_ABI", "armv7");
+        }
+        // API Level
+        config.define("DCMAKE_SYSTEM_VERSION", "21");
     } else if target.contains("ios") {
         config.define("CMAKE_SYSTEM_NAME", "iOS");
         // trick cmake-rs line:636
@@ -108,7 +116,7 @@ fn main() {
 
     // Link to the standard C++ library
     let target = env::var("TARGET").unwrap();
-    if target.contains("apple") || target.contains("freebsd") {
+    if target.contains("apple") || target.contains("freebsd")  || target.contains("linux") {
         println!("cargo:rustc-link-lib=c++");
     } else if target.contains("gnu") || target.contains("netbsd") || target.contains("openbsd") {
         println!("cargo:rustc-link-lib=stdc++");
